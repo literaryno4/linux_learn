@@ -1,0 +1,8 @@
+PID of parent process is:   870220
+Foregroud process group ID is: 870220
+PID=870220 PGID=870220
+PID=870611 PGID=870220
+PID=870612 PGID=870220
+PID=870610 PGID=870610
+PID 870611: caught signal  1 (Hangup)
+PID 870612: caught signal  1 (Hangup)
