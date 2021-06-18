@@ -3,7 +3,7 @@
 !*/
 !Makefile
 
-*/obj/*
 *.o
+*/*.o
 .vscode*
 .DS_Store
