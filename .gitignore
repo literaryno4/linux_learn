@@ -2,6 +2,8 @@
 !*.*
 !*/
 !Makefile
+
 */obj/*
 *.o
 .vscode*
+.DS_Store
