@@ -8,11 +8,15 @@
 #include <sys/mman.h>
 #include "../include/tlpi_hdr.h"
 #include "../include/read_line.h"
+#include "../include/sbuf.h"
 
 #define PORT_NUM "50004"
 #define BACKLOG 50
 #define BUF_SIZE 1000
 #define MAX_FILE_SIZE 100000
+#define MAX_THREAD_NUMBER 8
+
+sbuf_t sp;
 
 void 
 errPage(int cfd, char *cause, char *errnum, 
@@ -37,6 +41,7 @@ errPage(int cfd, char *cause, char *errnum,
     write(cfd, buf, strlen(buf));
     sprintf(buf, "<hr><em>The Fun Web server</em>\r\n");
     write(cfd, buf, strlen(buf));
+
 }
 
 void
@@ -144,20 +149,16 @@ dynamicRequest(int cfd, char *filename, char *cgiargs)
     return 0;
 }
 
-static void *
-serveWeb(void *pfd)
+int
+serveWeb(int cfd)
 {
-    int cfd, numread, isStatic;
+    int numread, isStatic;
     struct stat sbuf;
     char buf[BUF_SIZE], method[BUF_SIZE], url[BUF_SIZE], 
             version[BUF_SIZE], filename[BUF_SIZE], cgiargs[BUF_SIZE];
-    
-    cfd = * ((int *)pfd);
-    pthread_detach(pthread_self());
-    free(pfd);
 
     if ((numread = readLine(cfd, buf, BUF_SIZE)) == -1) {
-        return;
+        return -1;
     }
     sscanf(buf, "%s %s %s", method, url, version);
     readothhrd(cfd);
@@ -165,8 +166,9 @@ serveWeb(void *pfd)
     if (strcmp(method, "GET")) {
         errPage(cfd, method, "501", "Not Implemented",
                     "funserver does not implement this method");
+        close(cfd);
 
-        return;
+        return -1;
     }
 
     isStatic = parseUrl(url, filename, cgiargs);
@@ -174,7 +176,8 @@ serveWeb(void *pfd)
     if (stat(filename, &sbuf) == -1) {
         errPage(cfd, filename, "404", "Not found",
             "funserver couldn't find this file");
-        return;
+        close(cfd);
+        return -1;
     }
     if (isStatic) {
         staticRequest(cfd, filename, sbuf.st_size);
@@ -185,19 +188,31 @@ serveWeb(void *pfd)
 
     printf("received GET req\n\n\n");
 
-    return;
+    return 0;
 }
 
 static void *
-worker(void *arg)
+worker()
 {
+    pthread_detach(pthread_self());
 
+    printf("detached\n");
+
+    int cfd;
+    for (;;) {
+        cfd = sbuf_remove(&sp);
+        printf("serve\n");
+        serveWeb(cfd);
+        close(cfd);
+    }
+
+    return;
 }
 
 int
 main(int argc, char *argv[])
 {
-    int lfd, optval, s;
+    int lfd, cfd, optval, s;
     int *pfd;
     pthread_t t1;
     struct sockaddr_storage claddr;
@@ -205,6 +220,15 @@ main(int argc, char *argv[])
     struct addrinfo hints;
     struct addrinfo *result, *rp;
     struct sigaction sa;
+
+    // create thread pool
+    sbuf_init(&sp, 16);
+    for (int i = 0; i < MAX_THREAD_NUMBER; i++) {
+        s = pthread_create(&t1, NULL, worker, NULL);
+        if (s != 0) {
+            err_exit("pthread_create");
+        }
+    }
 
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_RESTART;
@@ -253,20 +277,19 @@ main(int argc, char *argv[])
 
     freeaddrinfo(result);
 
+
+    // TODO: epoll list to handle I/O
+
+    // TODO: semosphare to sync thread
+
+
     for (;;) {
-        pfd = malloc(sizeof(int));
-        *pfd = accept(lfd, (struct sockaddr *) &claddr, &addrlen);
-        if (*pfd == -1) {
-            free(pfd);
+        cfd = accept(lfd, (struct sockaddr *) &claddr, &addrlen);
+        if (cfd == -1) {
             continue;
         }
-
         printf("connected\n");
 
-        s = pthread_create(&t1, NULL, serveWeb, (void *)pfd);
-        if (s != 0) {
-            free(pfd);
-            errExit("pthread_create");
-        }
+        sbuf_insert(&sp, cfd);
     }
 }

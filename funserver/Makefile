@@ -1,14 +1,14 @@
 CC=gcc
-CFLAGS=-Wall -Wformat=0 -lcrypt -g -pthread -lcap
+CFLAGS=-Wall -Wformat=0 -lcrypt -g -pthread
 ODIR=obj
 IDIR=../include
 LDIR=../lib
-PROGRAM=funserver funserver_thread
+PROGRAM=funserver funserver_thread press_test funserver_threadpool funserver_threadpool_epoll
 
 _DEPS = 
 DEPS = $(patsubst %, $(IDIR)/%,$(_DEPS))
 
-_OBJ = error_functions.o get_num.o read_line.o
+_OBJ = error_functions.o get_num.o read_line.o sbuf.o inet_sockets.o
 OBJ = $(patsubst %, $(ODIR)/%,$(_OBJ))
 
 all : $(PROGRAM)
