@@ -1,9 +1,9 @@
 CC=gcc
-CFLAGS=-Wall -Wformat=0 -lcrypt -g -pthread -lcap
+CFLAGS=-Wall -Wformat=0 -lcrypt -g -pthread
 ODIR=obj
 IDIR=../include
 LDIR=../lib
-PROGRAM=id_echo_sv id_echo_cl is_echo_sv is_echo_cl
+PROGRAM=id_echo_sv id_echo_cl is_echo_sv is_echo_cl is_echo_inetd_sv
 
 _DEPS = 
 DEPS = $(patsubst %, $(IDIR)/%,$(_DEPS))

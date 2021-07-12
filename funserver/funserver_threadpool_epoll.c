@@ -44,9 +44,11 @@ int static Request(int cfd, char *filename, int filesize);
 
 int dynamicRequest(int cfd, char *filename, char *cgiargs);
 
-int serveWebRead(int cfd);
-
 void modfd( int epollfd, int fd, int ev );
+
+int setnonblocking(int fd);
+
+int serveWebRead(int cfd);
 
 int serveWebWrite(int cfd);
 
@@ -118,6 +120,7 @@ worker(struct users *usrs)
             ev.data.fd = cfd;
             ev.events = EPOLLIN | EPOLLOUT | EPOLLET |EPOLLERR;
             epoll_ctl(epollFd, EPOLL_CTL_ADD, cfd, &ev);
+            setnonblocking(cfd);
         }
 
         numEvents = epoll_wait(epollFd, evlist, MAX_EVENTS, 0);
@@ -200,6 +203,15 @@ serveWebWrite(int cfd)
 
     return 0;
 
+}
+
+int 
+setnonblocking(int fd)
+{
+    int old_option = fcntl(fd, F_GETFL);
+    int new_option = old_option | O_NONBLOCK;
+    fcntl(fd, F_SETFL, new_option);
+    return old_option;
 }
 
 void 
